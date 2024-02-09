@@ -1,3 +1,4 @@
+
 import { sql } from '@vercel/postgres';
 import { unstable_noStore as noStore } from 'next/cache';
 import {
@@ -6,12 +7,14 @@ import {
   InvoiceForm,
   InvoicesTable,
   LatestInvoiceRaw,
+  LatestInvoice,
   User,
   Revenue,
 } from './definitions';
 import { formatCurrency } from './utils';
 
 export async function fetchRevenue() {
+
   // Add noStore() here to prevent the response from being cached.
   // This is equivalent to in fetch(..., {cache: 'no-store'}).
   noStore();
@@ -36,22 +39,31 @@ export async function fetchRevenue() {
 
 export async function fetchLatestInvoices() {
   noStore();
-  try {
-    const data = await sql<LatestInvoiceRaw>`
-      SELECT invoices.amount, customers.name, customers.image_url, customers.email, invoices.id
-      FROM invoices
-      JOIN customers ON invoices.customer_id = customers.id
-      ORDER BY invoices.date DESC
-      LIMIT 5`;
 
-    const latestInvoices = data.rows.map((invoice) => ({
+  try {
+    console.log('Envoi de la requête API');
+    const response = await fetch('http://localhost:5000/api/invoices/latest'); 
+    console.log('Réponse reçue de l’API', response); 
+    if (!response.ok) {
+      console.error('Réponse API non OK:', response);
+      throw new Error('Réseau ou réponse API invalide.');
+    }
+
+    // Cast the response to an array of LatestInvoiceRaw
+    const invoicesData: LatestInvoiceRaw[] = await response.json();
+    console.log('Données reçues de l’API', invoicesData); // Log des données reçues
+
+
+    // Map over the array to convert each invoice to LatestInvoice
+    const latestInvoices: LatestInvoice[] = invoicesData.map((invoice: LatestInvoiceRaw) => ({
       ...invoice,
       amount: formatCurrency(invoice.amount),
     }));
+
     return latestInvoices;
   } catch (error) {
-    console.error('Database Error:', error);
-    throw new Error('Failed to fetch the latest invoices.');
+    console.error('Erreur dans fetchLatestInvoices:', error);
+    throw new Error('Échec de la récupération des dernières factures.');
   }
 }
 

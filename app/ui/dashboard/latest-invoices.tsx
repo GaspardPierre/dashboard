@@ -1,3 +1,5 @@
+
+import { auth } from '@/auth';
 import { fetchLatestInvoices } from '@/app/lib/data';
 import { ArrowPathIcon } from '@heroicons/react/24/outline';
 import clsx from 'clsx';
@@ -8,6 +10,7 @@ import { LatestInvoice } from '@/app/lib/definitions';
 
 export default async function LatestInvoices() {
   const latestInvoices =  await fetchLatestInvoices();
+ 
   return (
     <div className="flex w-full flex-col md:col-span-4">
       <h2 className={`${lusitana.className} mb-4 text-xl md:text-2xl`}>
@@ -61,4 +64,24 @@ export default async function LatestInvoices() {
       </div>
     </div>
   );
+}
+export async function getServerSideProps(context) {
+  const session = await auth(context.req);
+  console.log(session, "SESSION*****")
+
+  if (!session) {
+    return {
+      redirect: {
+        destination: '/login',
+        permanent: false,
+      },
+    };
+  }
+  const latestInvoices = await fetchLatestInvoices(session.token); // Assurez-vous que fetchLatestInvoices accepte un token
+
+  return {
+    props: {
+      latestInvoices,
+    },
+  };
 }

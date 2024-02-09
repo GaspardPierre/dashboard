@@ -2,19 +2,35 @@ import NextAuth from 'next-auth';
 import { authConfig } from './auth.config';
 import Credentials from 'next-auth/providers/credentials';
 import { z } from 'zod';
-import { sql } from '@vercel/postgres';
+
 import type { User } from '@/app/lib/definitions';
 import bcrypt from 'bcrypt';
 
-async function getUser(email: string): Promise<User | undefined> {
+async function getUser(email :string, password: string) {
   try {
-    const user = await sql<User>`SELECT * FROM users WHERE email=${email}`;
-    return user.rows[0];
+    console.log('Sending login request for:', email, password);
+    console.log(JSON.stringify({ email, password }));
+    const response = await fetch(`http://localhost:5000/api/users/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include', 
+      body: JSON.stringify({ email, password }),
+    });
+    if (!response.ok) {
+      console.error('Failed to fetch user. Response status:', response.status);
+      throw new Error('Failed to fetch user.');
+    }
+    const user = await response.json();
+    console.log('User fetched:', user);
+    return user;
   } catch (error) {
     console.error('Failed to fetch user:', error);
-    throw new Error('Failed to fetch user.');
+    throw error;
   }
 }
+
 
 export const { auth, signIn, signOut } = NextAuth({
   ...authConfig,
@@ -27,14 +43,16 @@ export const { auth, signIn, signOut } = NextAuth({
 
         if (parsedCredentials.success) {
           const { email, password } = parsedCredentials.data;
-          const user = await getUser(email);
+          const user = await getUser(email,password);
+          console.log("user en front ", user)
           if (!user) return null;
-          const passwordsMatch = await bcrypt.compare(password, user.password);
-          if (passwordsMatch) return user;
+          if (user && user.token) {
+            // Ici, au lieu de comparer les mots de passe, nous validons simplement si l'utilisateur a un token
+            return { email: user.email }; // ou retournez l'objet utilisateur complet si nécessaire
+          }
         }
         console.log('Invalid credentials');
         return null;
-
       },
     }),
   ],
