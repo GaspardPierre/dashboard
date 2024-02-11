@@ -22,21 +22,24 @@ export async function fetchRevenue() {
   try {
     // Artificially delay a response for demo purposes.
     // Don't do this in production :)
+    const response = await fetch('http://localhost:5000/api/revenues', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
 
-    console.log('Fetching revenue data...');
-    await new Promise((resolve) => setTimeout(resolve, 3000));
+    if (!response.ok) {
+      throw new Error('Network response was not ok');
+    }
 
-    const data = await sql<Revenue>`SELECT * FROM revenue`;
-
-     console.log('Data fetch completed after 3 seconds.')
-
-    return data.rows;
+    const revenueData = await response.json();
+    return revenueData;
   } catch (error) {
-    console.error('Database Error:', error);
+    console.error('Failed to fetch revenue data:', error);
     throw new Error('Failed to fetch revenue data.');
   }
 }
-
 export async function fetchLatestInvoices() {
   noStore();
 
@@ -51,7 +54,7 @@ export async function fetchLatestInvoices() {
 
     // Cast the response to an array of LatestInvoiceRaw
     const invoicesData: LatestInvoiceRaw[] = await response.json();
-    console.log('Données reçues de l’API', invoicesData); // Log des données reçues
+
 
 
     // Map over the array to convert each invoice to LatestInvoice
@@ -70,182 +73,124 @@ export async function fetchLatestInvoices() {
 export async function fetchCardData() {
   noStore();
   try {
-    // You can probably combine these into a single SQL query
-    // However, we are intentionally splitting them to demonstrate
-    // how to initialize multiple queries in parallel with JS.
-    const invoiceCountPromise = sql`SELECT COUNT(*) FROM invoices`;
-    const customerCountPromise = sql`SELECT COUNT(*) FROM customers`;
-    const invoiceStatusPromise = sql`SELECT
-         SUM(CASE WHEN status = 'paid' THEN amount ELSE 0 END) AS "paid",
-         SUM(CASE WHEN status = 'pending' THEN amount ELSE 0 END) AS "pending"
-         FROM invoices`;
+    console.log('Envoi de la requête API pour les données du tableau de bord');
+    const response = await fetch('http://localhost:5000/api/dashboard');
 
-    const data = await Promise.all([
-      invoiceCountPromise,
-      customerCountPromise,
-      invoiceStatusPromise,
-    ]);
+    if (!response.ok) {
+      throw new Error(`Erreur de réponse API pour les données du tableau de bord: ${response.statusText}`);
+    }
 
-    const numberOfInvoices = Number(data[0].rows[0].count ?? '0');
-    const numberOfCustomers = Number(data[1].rows[0].count ?? '0');
-    const totalPaidInvoices = formatCurrency(data[2].rows[0].paid ?? '0');
-    const totalPendingInvoices = formatCurrency(data[2].rows[0].pending ?? '0');
+    const dashboardData = await response.json();
+console.log(formatCurrency(dashboardData.totalPaidInvoices));
 
     return {
-      numberOfCustomers,
-      numberOfInvoices,
-      totalPaidInvoices,
-      totalPendingInvoices,
+      numberOfCustomers: dashboardData.numberOfCustomers,
+      numberOfInvoices: dashboardData.numberOfInvoices,
+      totalPaidInvoices: formatCurrency(dashboardData.totalPaidInvoices),
+      totalPendingInvoices: formatCurrency(dashboardData.totalPendingInvoices)
     };
   } catch (error) {
-    console.error('Database Error:', error);
-    throw new Error('Failed to fetch card data.');
+    console.error('Erreur lors de la récupération des données du tableau de bord:', error);
+    throw new Error('Échec de la récupération des données du tableau de bord.');
   }
 }
+
+ 
+  
 
 const ITEMS_PER_PAGE = 6;
 export async function fetchFilteredInvoices(
   query: string,
   currentPage: number,
 ) {
-  noStore();
-  const offset = (currentPage - 1) * ITEMS_PER_PAGE;
-
   try {
-    const invoices = await sql<InvoicesTable>`
-      SELECT
-        invoices.id,
-        invoices.amount,
-        invoices.date,
-        invoices.status,
-        customers.name,
-        customers.email,
-        customers.image_url
-      FROM invoices
-      JOIN customers ON invoices.customer_id = customers.id
-      WHERE
-        customers.name ILIKE ${`%${query}%`} OR
-        customers.email ILIKE ${`%${query}%`} OR
-        invoices.amount::text ILIKE ${`%${query}%`} OR
-        invoices.date::text ILIKE ${`%${query}%`} OR
-        invoices.status ILIKE ${`%${query}%`}
-      ORDER BY invoices.date DESC
-      LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}
-    `;
-
-    return invoices.rows;
+    const response = await fetch(`http://localhost:5000/api/invoices/filtered?query=${encodeURIComponent(query)}&page=${currentPage}`);
+    if (!response.ok) {
+      throw new Error('Réseau ou réponse API invalide.');
+    }
+    const invoices = await response.json();
+    return invoices;
   } catch (error) {
-    console.error('Database Error:', error);
-    throw new Error('Failed to fetch invoices.');
+    console.error('Erreur dans fetchFilteredInvoices:', error);
+    throw new Error('Échec de la récupération des factures filtrées.');
   }
 }
+
 
 export async function fetchInvoicesPages(query: string) {
-  noStore();
   try {
-    const count = await sql`SELECT COUNT(*)
-    FROM invoices
-    JOIN customers ON invoices.customer_id = customers.id
-    WHERE
-      customers.name ILIKE ${`%${query}%`} OR
-      customers.email ILIKE ${`%${query}%`} OR
-      invoices.amount::text ILIKE ${`%${query}%`} OR
-      invoices.date::text ILIKE ${`%${query}%`} OR
-      invoices.status ILIKE ${`%${query}%`}
-  `;
-
-    const totalPages = Math.ceil(Number(count.rows[0].count) / ITEMS_PER_PAGE);
+    const response = await fetch(`http://localhost:5000/api/invoices/count?search=${query}`);
+    if (!response.ok) {
+      throw new Error('Réseau ou réponse API invalide.');
+    }
+    const { totalPages } = await response.json();
     return totalPages;
   } catch (error) {
-    console.error('Database Error:', error);
-    throw new Error('Failed to fetch total number of invoices.');
+    console.error('Erreur dans fetchInvoicesPages:', error);
+    throw new Error('Échec de la récupération du nombre total de pages de factures.');
   }
 }
+
 
 export async function fetchInvoiceById(id: string) {
-  noStore();
   try {
-    const data = await sql<InvoiceForm>`
-      SELECT
-        invoices.id,
-        invoices.customer_id,
-        invoices.amount,
-        invoices.status
-      FROM invoices
-      WHERE invoices.id = ${id};
-    `;
-
-    const invoice = data.rows.map((invoice) => ({
+    const response = await fetch(`http://localhost:5000/api/invoices/${id}`);
+    if (!response.ok) {
+      throw new Error('Réseau ou réponse API invalide.');
+    }
+    const invoice = await response.json();
+    return {
       ...invoice,
-      // Convert amount from cents to dollars
+      // Convertir le montant de cents en dollars si nécessaire
       amount: invoice.amount / 100,
-    }));
-
-    return invoice[0];
+    };
   } catch (error) {
-    console.error('Database Error:', error);
-    throw new Error('Failed to fetch invoice.');
+    console.error('Erreur dans fetchInvoiceById:', error);
+    throw new Error('Échec de la récupération de la facture.');
   }
 }
+
 
 export async function fetchCustomers() {
   try {
-    const data = await sql<CustomerField>`
-      SELECT
-        id,
-        name
-      FROM customers
-      ORDER BY name ASC
-    `;
-
-    const customers = data.rows;
+    const response = await fetch('http://localhost:5000/api/customers');
+    if (!response.ok) {
+      throw new Error('Réseau ou réponse API invalide.');
+    }
+    const customers = await response.json();
     return customers;
   } catch (err) {
-    console.error('Database Error:', err);
-    throw new Error('Failed to fetch all customers.');
+    console.error('Erreur dans fetchCustomers:', err);
+    throw new Error('Échec de la récupération de tous les clients.');
   }
 }
+
 
 export async function fetchFilteredCustomers(query: string) {
   try {
-    noStore();
-    const data = await sql<CustomersTableType>`
-		SELECT
-		  customers.id,
-		  customers.name,
-		  customers.email,
-		  customers.image_url,
-		  COUNT(invoices.id) AS total_invoices,
-		  SUM(CASE WHEN invoices.status = 'pending' THEN invoices.amount ELSE 0 END) AS total_pending,
-		  SUM(CASE WHEN invoices.status = 'paid' THEN invoices.amount ELSE 0 END) AS total_paid
-		FROM customers
-		LEFT JOIN invoices ON customers.id = invoices.customer_id
-		WHERE
-		  customers.name ILIKE ${`%${query}%`} OR
-        customers.email ILIKE ${`%${query}%`}
-		GROUP BY customers.id, customers.name, customers.email, customers.image_url
-		ORDER BY customers.name ASC
-	  `;
-
-    const customers = data.rows.map((customer) => ({
-      ...customer,
-      total_pending: formatCurrency(customer.total_pending),
-      total_paid: formatCurrency(customer.total_paid),
-    }));
-
+    const response = await fetch(`http://localhost:5000/api/customers/filtered?search=${query}`);
+    if (!response.ok) {
+      throw new Error('Réseau ou réponse API invalide.');
+    }
+    const customers = await response.json();
+    // Mappez ici pour formater les valeurs monétaires, si nécessaire
     return customers;
   } catch (err) {
-    console.error('Database Error:', err);
-    throw new Error('Failed to fetch customer table.');
+    console.error('Erreur dans fetchFilteredCustomers:', err);
+    throw new Error('Échec de la récupération de la table des clients.');
   }
 }
 
-export async function getUser(email: string) {
+export async function getUser(email: string): Promise<User | undefined> {
   try {
-    const user = await sql`SELECT * FROM users WHERE email=${email}`;
-    return user.rows[0] as User;
+    const response = await fetch(`http://localhost:5000/api/users/by-email/${encodeURIComponent(email)}`);
+    if (!response.ok) {
+      throw new Error('Réseau ou réponse API invalide.');
+    }
+    const user = await response.json();
+    return user;
   } catch (error) {
-    console.error('Failed to fetch user:', error);
-    throw new Error('Failed to fetch user.');
+    console.error('Erreur dans getUser:', error);
+    throw new Error('Échec de la récupération de l\'utilisateur.');
   }
 }
