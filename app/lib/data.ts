@@ -81,7 +81,7 @@ export async function fetchCardData() {
     }
 
     const dashboardData = await response.json();
-console.log(formatCurrency(dashboardData.totalPaidInvoices));
+console.log(dashboardData.numberOfInvoices);
 
     return {
       numberOfCustomers: dashboardData.numberOfCustomers,

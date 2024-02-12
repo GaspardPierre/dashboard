@@ -5,11 +5,22 @@ import { ArrowPathIcon } from '@heroicons/react/24/outline';
 import clsx from 'clsx';
 import Image from 'next/image';
 import { lusitana } from '../../ui/font';
-import { LatestInvoice } from '@/app/lib/definitions';
+
 
 
 export default async function LatestInvoices() {
-  const latestInvoices =  await fetchLatestInvoices();
+  let latestInvoices =  await fetchLatestInvoices();
+  console.log("latestInvoices", latestInvoices);
+
+  latestInvoices = latestInvoices.map(invoice => ({
+    id: invoice._id,
+    name: invoice.customer_id.name,
+    image_url: invoice.customer_id.image_url,
+    email: invoice.customer_id.email,
+    amount: invoice.amount
+  }));
+
+  
  
   return (
     <div className="flex w-full flex-col md:col-span-4">
