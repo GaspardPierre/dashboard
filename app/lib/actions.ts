@@ -138,11 +138,11 @@ export async function authenticate(
  
     const email = formData.get('email');
     const password = formData.get('password');
-    console.log("******Email", email)
+ 
 
   
     await signIn('credentials', {
-      redirect: false, 
+      redirect: true, 
       email,
       password,
    

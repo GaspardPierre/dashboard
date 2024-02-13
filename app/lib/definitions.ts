@@ -92,3 +92,10 @@ export type InvoiceForm = {
   amount: number;
   status: 'pending' | 'paid';
 };
+
+//STORE****
+
+export type AuthStore = {
+  token: string | null;
+  setToken: (newToken: string | null) => void;
+};

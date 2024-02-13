@@ -32,6 +32,7 @@ async function getUser(email :string, password: string) {
 }
 
 
+
 export const { auth, signIn, signOut } = NextAuth({
   ...authConfig,
   providers: [
@@ -46,9 +47,10 @@ export const { auth, signIn, signOut } = NextAuth({
           const user = await getUser(email,password);
           console.log("user en front ", user)
           if (!user) return null;
-          if (user && user.token) {
-            // Ici, au lieu de comparer les mots de passe, nous validons simplement si l'utilisateur a un token
-            return { email: user.email }; // ou retournez l'objet utilisateur complet si nécessaire
+          if (user ) {
+           
+          
+            return { email: user.email }; 
           }
         }
         console.log('Invalid credentials');
@@ -56,4 +58,6 @@ export const { auth, signIn, signOut } = NextAuth({
       },
     }),
   ],
+
+  
 });

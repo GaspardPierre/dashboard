@@ -92,7 +92,7 @@ console.log(dashboardData.numberOfInvoices);
   } catch (error) {
     console.error('Erreur lors de la récupération des données du tableau de bord:', error);
     throw new Error('Échec de la récupération des données du tableau de bord.');
-  }
+  } 
 }
 
  
