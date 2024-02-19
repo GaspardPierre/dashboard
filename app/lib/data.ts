@@ -1,6 +1,6 @@
 
-import { sql } from '@vercel/postgres';
 import { unstable_noStore as noStore } from 'next/cache';
+
 import {
   CustomerField,
   CustomersTableType,
@@ -12,6 +12,7 @@ import {
   Revenue,
 } from './definitions';
 import { formatCurrency } from './utils';
+import { NextRequest } from 'next/server';
 
 export async function fetchRevenue() {
 
@@ -19,12 +20,15 @@ export async function fetchRevenue() {
   // This is equivalent to in fetch(..., {cache: 'no-store'}).
   noStore();
 
+
+
   try {
     // Artificially delay a response for demo purposes.
     // Don't do this in production :)
     const response = await fetch('http://localhost:5000/api/revenues', {
       method: 'GET',
       headers: {
+    
         'Content-Type': 'application/json',
       },
     });
@@ -41,24 +45,31 @@ export async function fetchRevenue() {
   }
 }
 export async function fetchLatestInvoices() {
+
   noStore();
 
+  
+ 
   try {
-    console.log('Envoi de la requête API');
-    const response = await fetch('http://localhost:5000/api/invoices/latest'); 
-    console.log('Réponse reçue de l’API', response); 
+ 
+    const response = await fetch('http://localhost:5000/api/invoices/latest', {
+      method: 'GET',
+      headers: {
+    
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include', 
+    });
+
     if (!response.ok) {
       console.error('Réponse API non OK:', response);
       throw new Error('Réseau ou réponse API invalide.');
     }
 
-    // Cast the response to an array of LatestInvoiceRaw
-    const invoicesData: LatestInvoiceRaw[] = await response.json();
+    const invoicesData = await response.json();
 
-
-
-    // Map over the array to convert each invoice to LatestInvoice
-    const latestInvoices: LatestInvoice[] = invoicesData.map((invoice: LatestInvoiceRaw) => ({
+    // Conversion des données de facturation
+    const latestInvoices = invoicesData.map(invoice => ({
       ...invoice,
       amount: formatCurrency(invoice.amount),
     }));
@@ -70,11 +81,21 @@ export async function fetchLatestInvoices() {
   }
 }
 
+
 export async function fetchCardData() {
   noStore();
+
   try {
-    console.log('Envoi de la requête API pour les données du tableau de bord');
-    const response = await fetch('http://localhost:5000/api/dashboard');
+
+    const response = await fetch('http://localhost:5000/api/dashboard' ,   {
+
+      method: 'GET',
+    headers: {
+  
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include', 
+  });
 
     if (!response.ok) {
       throw new Error(`Erreur de réponse API pour les données du tableau de bord: ${response.statusText}`);
@@ -103,12 +124,27 @@ export async function fetchFilteredInvoices(
   query: string,
   currentPage: number,
 ) {
+  const url = `http://localhost:5000/api/invoices/filtered?query=${query}&page=${currentPage}`;
+  console.log('Début de fetchFilteredInvoices, URL:', url);
+
   try {
-    const response = await fetch(`http://localhost:5000/api/invoices/filtered?query=${encodeURIComponent(query)}&page=${currentPage}`);
-    if (!response.ok) {
-      throw new Error('Réseau ou réponse API invalide.');
-    }
+    const response = await fetch(url,  {
+
+
+    method: 'GET',
+  headers: {
+
+    'Content-Type': 'application/json',
+  },
+  credentials: 'include', 
+});
+console.log('Réponse reçue, Statut:', response.status);
+if (!response.ok) {
+  console.error('Réponse API non OK, Statut:', response.status, 'Statut Text:', response.statusText);
+  throw new Error('Réseau ou réponse API invalide.');
+}
     const invoices = await response.json();
+    console.log('Factures récupérées:', invoices);
     return invoices;
   } catch (error) {
     console.error('Erreur dans fetchFilteredInvoices:', error);
@@ -119,7 +155,7 @@ export async function fetchFilteredInvoices(
 
 export async function fetchInvoicesPages(query: string) {
   try {
-    const response = await fetch(`http://localhost:5000/api/invoices/count?search=${query}`);
+    const response = await fetch(`http://localhost:5000/api/invoices/search?search=${query}`);
     if (!response.ok) {
       throw new Error('Réseau ou réponse API invalide.');
     }

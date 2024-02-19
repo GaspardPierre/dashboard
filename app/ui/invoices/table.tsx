@@ -11,7 +11,18 @@ export default async function InvoicesTable({
   query: string;
   currentPage: number;
 }) {
-  const invoices = await fetchFilteredInvoices(query, currentPage);
+
+  let invoices =  await fetchFilteredInvoices(query, currentPage);
+
+
+  invoices = invoices.map(invoice => ({
+    id: invoice._id,
+    name: invoice.customer_id.name,
+    image_url: invoice.customer_id.image_url,
+    email: invoice.customer_id.email,
+    amount: invoice.amount,
+    date: invoice.date
+  }));
 
   return (
     <div className="mt-6 flow-root">

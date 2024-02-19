@@ -3,8 +3,7 @@ import { authConfig } from './auth.config';
 import Credentials from 'next-auth/providers/credentials';
 import { z } from 'zod';
 
-import type { User } from '@/app/lib/definitions';
-import bcrypt from 'bcrypt';
+
 
 async function getUser(email :string, password: string) {
   try {
@@ -18,6 +17,8 @@ async function getUser(email :string, password: string) {
       credentials: 'include', 
       body: JSON.stringify({ email, password }),
     });
+   
+
     if (!response.ok) {
       console.error('Failed to fetch user. Response status:', response.status);
       throw new Error('Failed to fetch user.');
@@ -34,10 +35,14 @@ async function getUser(email :string, password: string) {
 
 
 export const { auth, signIn, signOut } = NextAuth({
+ 
   ...authConfig,
+
   providers: [
     Credentials({
+   
       async authorize(credentials) {
+        
         const parsedCredentials = z
           .object({ email: z.string().email(), password: z.string().min(6) })
           .safeParse(credentials);
@@ -45,17 +50,26 @@ export const { auth, signIn, signOut } = NextAuth({
         if (parsedCredentials.success) {
           const { email, password } = parsedCredentials.data;
           const user = await getUser(email,password);
-          console.log("user en front ", user)
+          const token = user.token;
+          console.log("T*O*K*E*N*:", token);
+
+        
           if (!user) return null;
-          if (user ) {
+          if (user) {
+          
+           
+            return { email: user.email , token: user.token };
+          } else {
+           
            
           
-            return { email: user.email }; 
+            return {email, token }; 
           }
         }
         console.log('Invalid credentials');
         return null;
       },
+    
     }),
   ],
 
