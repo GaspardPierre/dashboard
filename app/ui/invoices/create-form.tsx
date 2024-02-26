@@ -23,7 +23,7 @@ export default function Form({ customers }: { customers: CustomerField[] }) {
         {/* Customer Name */}
         <div className="mb-4">
           <label htmlFor="customer" className="mb-2 block text-sm font-medium">
-            Choose customer
+            Choose customery
           </label>
           <div className="relative">
             <select

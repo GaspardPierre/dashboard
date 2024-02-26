@@ -35,6 +35,10 @@ export type State = {
 };
  
 export async function createInvoice(prevState: State, formData: FormData) {
+
+
+
+  
     // Validate form using Zod
 
   const validatedFields = CreateInvoice.safeParse({
@@ -55,20 +59,43 @@ export async function createInvoice(prevState: State, formData: FormData) {
     const { customerId, amount, status } = validatedFields.data;
   const amountInCents = amount * 100;
   const date = new Date().toISOString().split('T')[0];
+  const invoiceData = {
+    customerId,
+    amount: amountInCents,
+    status,
+    date,
+    items: [],
+    dueDate: null,
+  };
 
-
-      try {      
-    
-      await sql`
-      INSERT INTO invoices (customer_id, amount, status, date)
-      VALUES (${customerId}, ${amountInCents}, ${status}, ${date})`
-    } catch (error) {
-      return {
-        message: 'Database Error: Failed to Create Invoice.',
-      };
+  try {
+    const response = await fetch('http://localhost:5000/api/invoices/create', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        customer_id: invoiceData.customerId, 
+        items: invoiceData.items, 
+        amount: invoiceData.amount,
+        date: invoiceData.date, 
+        dueDate: invoiceData.dueDate, 
+        status: invoiceData.status, 
+      }),
       
-        
+    });
+ console.log("response en front ..", response.status)
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
+
+    // Additional logic for handling response...
+  } catch (error) {
+    return {
+      message: 'Database Error: Failed to Create Invoice.',
+    };
+  }
     ;
      
   revalidatePath('/dashboard/invoices');

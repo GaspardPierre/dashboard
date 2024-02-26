@@ -1,6 +1,6 @@
 
 import { unstable_noStore as noStore } from 'next/cache';
-
+import { cookies } from "next/headers";
 import {
   CustomerField,
   CustomersTableType,
@@ -14,11 +14,16 @@ import {
 import { formatCurrency } from './utils';
 import { NextRequest } from 'next/server';
 
+
+
 export async function fetchRevenue() {
 
   // Add noStore() here to prevent the response from being cached.
   // This is equivalent to in fetch(..., {cache: 'no-store'}).
   noStore();
+  const authToken = cookies().get("jwt")?.value;
+  console.log(authToken, "TOKEN*******************************");
+  
 
 
 
@@ -160,6 +165,7 @@ export async function fetchInvoicesPages(query: string) {
       throw new Error('Réseau ou réponse API invalide.');
     }
     const { totalPages } = await response.json();
+    
     return totalPages;
   } catch (error) {
     console.error('Erreur dans fetchInvoicesPages:', error);
